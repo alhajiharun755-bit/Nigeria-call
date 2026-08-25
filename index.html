@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NigeriaCall</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7f5;font-family:Arial,sans-serif;color:#172019}
+.wrap{max-width:430px;margin:auto;min-height:100vh;background:#fff}
+header{background:#087a3d;color:white;padding:24px 20px;border-radius:0 0 25px 25px}
+.logo{font-size:26px;font-weight:800}.sub{opacity:.85;margin-top:4px}
+.balance{margin-top:20px;padding:16px;border-radius:16px;background:#ffffff18}.balance small{opacity:.8}.balance b{display:block;font-size:28px;margin-top:4px}
+main{padding:20px 18px 95px}.card{padding:17px;border:1px solid #e4e8e5;border-radius:18px;margin-bottom:15px;box-shadow:0 5px 18px #00000008}
+label{display:block;font-size:13px;color:#66716a;margin:0 0 7px}input{width:100%;padding:14px;border:1px solid #ccd4cf;border-radius:12px;font-size:16px}
+button{border:0;border-radius:12px;padding:14px;font-weight:700;cursor:pointer}.primary{background:#087a3d;color:white;width:100%;margin-top:12px}
+.secondary{background:#e8f5ed;color:#087a3d}.notice{font-size:13px;padding:12px;background:#fff7dc;border:1px solid #ead79a;border-radius:12px;color:#6f5900}
+.screen{display:none}.screen.active{display:block}.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:430px;width:100%;height:70px;background:#fff;border-top:1px solid #ddd;display:flex;justify-content:space-around;align-items:center}.nav button{background:none;color:#6b746e;padding:6px}.nav button.active{color:#087a3d}.icon{font-size:20px;display:block}
+.row{display:flex;justify-content:space-between;align-items:center}.muted{color:#6b746e;font-size:13px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end}.modal.show{display:flex}.sheet{background:#fff;width:min(430px,100%);padding:22px;border-radius:24px 24px 0 0}
+.otp{display:flex;gap:7px}.otp input{text-align:center;font-size:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">🇳🇬 NigeriaCall</div>
+  <div class="sub">Affordable international calls to Nigeria</div>
+  <div class="balance"><small>Wallet balance</small><b id="balance">₦0.00</b></div>
+</header>
+<main>
+<section id="call" class="screen active">
+<h2>Call Nigeria</h2>
+<div class="card">
+<label>Your verified phone</label><input id="phone" placeholder="+237...">
+<br><br><label>Nigeria destination</label><input id="destination" placeholder="+2348012345678">
+<button class="primary" onclick="requestCall()">📞 Request call</button>
+</div>
+<div class="notice">This starter is integration-ready. Real OTP, payment and phone calling require your own provider accounts and approved API credentials.</div>
+</section>
+
+<section id="wallet" class="screen">
+<h2>Wallet</h2>
+<div class="card"><h1 id="walletValue">₦0.00</h1><button class="secondary" onclick="demoTopup()">＋ Demo credit</button></div>
+<p class="muted">Replace demo credit with your payment provider webhook before launch.</p>
+</section>
+
+<section id="history" class="screen">
+<h2>Call history</h2><div id="historyList" class="card"><span class="muted">No calls yet.</span></div>
+</section>
+
+<section id="profile" class="screen">
+<h2>Account</h2>
+<div class="card">
+<label>Phone number</label><input id="profilePhone" placeholder="+237...">
+<button class="secondary" onclick="openOtp()">🔐 Verify with OTP</button>
+</div>
+</section>
+</main>
+<div class="nav">
+<button class="active" onclick="show('call',this)"><span class="icon">📞</span>Call</button>
+<button onclick="show('wallet',this)"><span class="icon">💰</span>Wallet</button>
+<button onclick="show('history',this)"><span class="icon">🧾</span>History</button>
+<button onclick="show('profile',this)"><span class="icon">👤</span>Account</button>
+</div>
+</div>
+
+<div id="modal" class="modal">
+<div class="sheet">
+<h2>OTP verification</h2><p class="muted">Enter the 6-digit code sent by your real OTP provider.</p>
+<div class="otp"><input maxlength="1"><input maxlength="1"><input maxlength="1"><input maxlength="1"><input maxlength="1"><input maxlength="1"></div>
+<button class="primary" onclick="verify()">Verify</button><br><br>
+<button class="secondary" onclick="closeOtp()">Cancel</button>
+</div>
+</div>
+
+<script>
+const money=n=>"₦"+Number(n).toLocaleString("en-NG",{minimumFractionDigits:2});
+let bal=0;
+
+function setBal(){document.getElementById("balance").textContent=money(bal);document.getElementById("walletValue").textContent=money(bal)}
+function show(id,btn){document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));btn.classList.add("active")}
+function openOtp(){document.getElementById("modal").classList.add("show")}
+function closeOtp(){document.getElementById("modal").classList.remove("show")}
+async function verify(){
+ const phone=document.getElementById("profilePhone").value.trim();
+ const otp=[...document.querySelectorAll(".otp input")].map(x=>x.value).join("");
+ if(!phone||otp.length!==6)return alert("Enter phone and a 6-digit OTP.");
+ const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,otp})});
+ const d=await r.json();alert(d.message||d.error);if(d.ok)closeOtp();
+}
+async function requestCall(){
+ const phone=document.getElementById("phone").value.trim(),destination=document.getElementById("destination").value.trim();
+ if(!phone||!destination)return alert("Enter both phone numbers.");
+ const q=await fetch("/api/calls/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destination})});
+ const quote=await q.json();
+ if(!confirm(`Rate: ${money(quote.ratePerMinute)}/minute. Continue?`))return;
+ const r=await fetch("/api/calls/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,destination})});
+ const d=await r.json();alert(d.message||d.error);loadHistory(phone);
+}
+async function loadHistory(phone){
+ const r=await fetch("/api/calls/"+encodeURIComponent(phone));const data=await r.json();
+ document.getElementById("historyList").innerHTML=data.length?data.map(c=>`<div style="padding:10px 0;border-bottom:1px solid #eee"><b>${c.destination}</b><br><span class="muted">${c.status}</span></div>`).join(""):"<span class='muted'>No calls yet.</span>";
+}
+function demoTopup(){bal+=1000;setBal();alert("Demo credit added. Connect a real payment provider before accepting money.")}
+setBal();
+</script>
+</body>
+</html>
